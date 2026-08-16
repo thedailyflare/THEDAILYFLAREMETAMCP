@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 const API_VERSION = process.env.META_API_VERSION || 'v25.0';
 const APP_ID = process.env.META_APP_ID || '';
 const APP_SECRET = process.env.META_APP_SECRET || '';
@@ -10,35 +12,20 @@ export class MetaApiError extends Error {
 }
 
 function appSecretProof(accessToken: string) {
-  if (!APP_SECRET) return undefined;
-  return BunLikeHmac(APP_SECRET, accessToken);
-}
-
-function BunLikeHmac(secret: string, value: string) {
-  return createHmacSha256(secret, value);
-}
-
-function createHmacSha256(secret: string, value: string) {
-  // Node's Web Crypto keeps this module dependency-free.
-  // The synchronous helper below is replaced at runtime by crypto.createHmac.
-  return requireCrypto().createHmac('sha256', secret).update(value).digest('hex');
-}
-
-function requireCrypto() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('node:crypto') as typeof import('node:crypto');
+  return APP_SECRET ? createHmac('sha256', APP_SECRET).update(accessToken).digest('hex') : undefined;
 }
 
 export async function metaRequest<T = unknown>(accessToken: string, path: string, init: RequestInit = {}): Promise<T> {
   const url = new URL(`https://graph.facebook.com/${API_VERSION}/${path.replace(/^\//, '')}`);
-  const proof = appSecretProof(accessToken);
   url.searchParams.set('access_token', accessToken);
+  const proof = appSecretProof(accessToken);
   if (proof) url.searchParams.set('appsecret_proof', proof);
 
-  const response = await fetch(url, {
-    ...init,
-    headers: { 'content-type': 'application/json', ...(init.headers || {}) }
-  });
+  const headers = new Headers(init.headers);
+  if (init.body instanceof URLSearchParams) headers.set('content-type', 'application/x-www-form-urlencoded');
+  else if (!headers.has('content-type')) headers.set('content-type', 'application/json');
+
+  const response = await fetch(url, { ...init, headers });
   const body = await response.json().catch(() => ({}));
   if (!response.ok || body?.error) {
     const error = body?.error || {};
@@ -48,6 +35,7 @@ export async function metaRequest<T = unknown>(accessToken: string, path: string
 }
 
 export async function exchangeCodeForLongLivedToken(code: string, redirectUri: string) {
+  if (!APP_ID || !APP_SECRET) throw new Error('META_APP_ID and META_APP_SECRET must be configured.');
   const shortUrl = new URL(`https://graph.facebook.com/${API_VERSION}/oauth/access_token`);
   shortUrl.searchParams.set('client_id', APP_ID);
   shortUrl.searchParams.set('client_secret', APP_SECRET);
