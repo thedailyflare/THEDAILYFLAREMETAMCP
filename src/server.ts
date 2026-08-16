@@ -15,6 +15,14 @@ const baseUrl = (process.env.PUBLIC_BASE_URL || `http://localhost:${port}`).repl
 const metaRedirectUri = process.env.META_OAUTH_REDIRECT_URI || `${baseUrl}/oauth/meta/callback`;
 const metaScopes = (process.env.META_SCOPES || 'ads_management,ads_read,business_management').split(',').map(s => s.trim()).filter(Boolean);
 
+if (process.env.NODE_ENV === 'production') {
+  for (const name of ['PUBLIC_BASE_URL', 'META_APP_ID', 'META_APP_SECRET', 'META_OAUTH_REDIRECT_URI', 'MCP_TOKEN_SECRET']) {
+    if (!process.env[name]) throw new Error(`Missing required production environment variable: ${name}`);
+  }
+  if (!baseUrl.startsWith('https://')) throw new Error('PUBLIC_BASE_URL must use HTTPS in production.');
+  if (!metaRedirectUri.startsWith('https://')) throw new Error('META_OAUTH_REDIRECT_URI must use HTTPS in production.');
+}
+
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
@@ -93,7 +101,8 @@ app.get('/oauth/meta/callback', async (req, res) => {
     const code = await store.createCode({ clientId: pending.clientId, redirectUri: pending.redirectUri, codeChallenge: pending.challenge, meta });
     const u = new URL(pending.redirectUri); u.searchParams.set('code', code); u.searchParams.set('state', pending.state); res.redirect(u.toString());
   } catch (error) {
-    const u = new URL(pending.redirectUri); u.searchParams.set('error', 'access_denied'); u.searchParams.set('error_description', error instanceof Error ? error.message : 'Meta OAuth failed'); u.searchParams.set('state', pending.state); res.redirect(u.toString());
+    console.error('[Meta OAuth]', error);
+    const u = new URL(pending.redirectUri); u.searchParams.set('error', 'access_denied'); u.searchParams.set('error_description', 'Meta authorization could not be completed.'); u.searchParams.set('state', pending.state); res.redirect(u.toString());
   }
 });
 
