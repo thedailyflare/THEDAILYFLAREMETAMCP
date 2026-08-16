@@ -12,6 +12,7 @@
   "dependencies": {
     "@modelcontextprotocol/node": "latest",
     "@modelcontextprotocol/server": "latest",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "zod": "^4.0.0"
   },
