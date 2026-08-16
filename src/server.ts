@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import { toNodeHandler } from '@modelcontextprotocol/node';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { AuthStore } from './auth.js';
 import { createMetaAdsServer } from './mcp.js';
 import { exchangeCodeForLongLivedToken, getAuthenticatedUser } from './meta.js';
@@ -10,6 +10,7 @@ import { exchangeCodeForLongLivedToken, getAuthenticatedUser } from './meta.js';
 const app = express();
 const store = new AuthStore();
 const port = Number(process.env.PORT || 3000);
+const apiVersion = process.env.META_API_VERSION || 'v25.0';
 const baseUrl = (process.env.PUBLIC_BASE_URL || `http://localhost:${port}`).replace(/\/$/, '');
 const metaRedirectUri = process.env.META_OAUTH_REDIRECT_URI || `${baseUrl}/oauth/meta/callback`;
 const metaScopes = (process.env.META_SCOPES || 'ads_management,ads_read,business_management').split(',').map(s => s.trim()).filter(Boolean);
@@ -26,7 +27,7 @@ function isAllowedRedirect(uri: string) {
   } catch { return false; }
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'thedailyflare-meta-ads-mcp', api_version: process.env.META_API_VERSION || 'v25.0' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'thedailyflare-meta-ads-mcp', api_version: apiVersion }));
 
 app.get('/.well-known/oauth-protected-resource', (_req, res) => res.json({
   resource: `${baseUrl}/mcp`,
@@ -63,10 +64,8 @@ app.get('/oauth/authorize', async (req, res) => {
   if (!client || !client.redirectUris.includes(redirectUri)) return oauthError(res, 400, 'Unknown client or redirect URI');
 
   const oauthState = randomBytes(24).toString('base64url');
-  const pending = { clientId, redirectUri, state, challenge, method };
-  // Short-lived state is intentionally kept in memory; the actual Meta credential is persisted only after callback.
-  pendingStates.set(oauthState, pending);
-  const url = new URL('https://www.facebook.com/v25.0/dialog/oauth');
+  pendingStates.set(oauthState, { clientId, redirectUri, state, challenge });
+  const url = new URL(`https://www.facebook.com/${apiVersion}/dialog/oauth`);
   url.searchParams.set('client_id', process.env.META_APP_ID || '');
   url.searchParams.set('redirect_uri', metaRedirectUri);
   url.searchParams.set('state', oauthState);
@@ -75,8 +74,9 @@ app.get('/oauth/authorize', async (req, res) => {
   res.redirect(url.toString());
 });
 
-type Pending = { clientId: string; redirectUri: string; state: string; challenge: string; method: string };
+type Pending = { clientId: string; redirectUri: string; state: string; challenge: string };
 const pendingStates = new Map<string, Pending>();
+setInterval(() => { if (pendingStates.size > 5000) pendingStates.clear(); }, 60_000).unref();
 
 app.get('/oauth/meta/callback', async (req, res) => {
   const state = String(req.query.state || '');
