@@ -1,6 +1,6 @@
 # The Daily Flare Meta Ads MCP
 
-An OAuth-enabled Model Context Protocol server for The Daily Flare's Facebook/Meta advertising workflows, built on the stable MCP TypeScript SDK v2 and Streamable HTTP. MCP v2 is the current stable SDK line and implements the 2026-07-28 protocol revision. citeturn2search0turn0search0
+An OAuth-enabled Model Context Protocol server for The Daily Flare's Facebook/Meta advertising workflows, built on the stable MCP TypeScript SDK v2 and Streamable HTTP.
 
 ## Capabilities
 
@@ -30,7 +30,7 @@ New campaigns, ad sets and ads default to `PAUSED` unless a caller explicitly su
 
 The server provides an OAuth authorization layer for MCP clients and then performs the Meta OAuth authorization. MCP access tokens are random opaque tokens whose hashes are stored on disk. Meta credentials are encrypted at rest with AES-256-GCM.
 
-The MCP endpoint accepts bearer authentication and passes validated auth context into the MCP server. Remote MCP deployments should use HTTPS; the MCP SDK recommends Streamable HTTP for remote servers. citeturn1search3turn0search0
+The MCP endpoint accepts bearer authentication and passes validated auth context into the MCP server. Remote MCP deployments should use HTTPS.
 
 ### Meta app configuration
 
