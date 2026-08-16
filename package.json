@@ -1,6 +1,6 @@
 {
   "name": "thedailyflare-meta-ads-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/node": "latest",
-    "@modelcontextprotocol/server": "latest",
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "zod": "^4.0.0"
