@@ -1,22 +1,36 @@
 # The Daily Flare Meta Ads MCP
 
-An OAuth-enabled Model Context Protocol server for The Daily Flare's Facebook/Meta advertising workflows.
+An OAuth-enabled Model Context Protocol server for The Daily Flare's Facebook/Meta advertising workflows, built on the stable MCP TypeScript SDK v2 and Streamable HTTP. MCP v2 is the current stable SDK line and implements the 2026-07-28 protocol revision. citeturn2search0turn0search0
 
-## What it exposes
+## Capabilities
 
-- Connection and account discovery
+### Meta Ads
+
+- Test Meta connection and identify the connected user
+- Discover advertising accounts and detailed account status
 - Campaign list/create/update/delete
 - Ad set list/create/update/delete
-- Ad list/create/update/delete using an existing creative
-- Ad insights
+- Ad list/create/update/delete using existing creatives
+- Creative discovery
+- Generic object insights
+- Campaign-level, ad-set-level and ad-level insights
 - Custom audience list/create
-- Facebook Page list, posts and Page insights
 
-All ad mutations default to `PAUSED` where Meta supports a status field, so an AI tool call does not accidentally publish a new campaign immediately.
+### Facebook Pages
+
+- List accessible Pages
+- Read recent Page posts
+- Read Page performance insights
+
+### Safety defaults
+
+New campaigns, ad sets and ads default to `PAUSED` unless a caller explicitly supplies another status. Page access tokens are never returned by the `get_pages` tool.
 
 ## Authentication
 
-This server implements an MCP OAuth authorization flow and then connects the user to Meta's OAuth flow. Meta access tokens are encrypted at rest with AES-256-GCM. MCP bearer tokens are stored as SHA-256 hashes.
+The server provides an OAuth authorization layer for MCP clients and then performs the Meta OAuth authorization. MCP access tokens are random opaque tokens whose hashes are stored on disk. Meta credentials are encrypted at rest with AES-256-GCM.
+
+The MCP endpoint accepts bearer authentication and passes validated auth context into the MCP server. Remote MCP deployments should use HTTPS; the MCP SDK recommends Streamable HTTP for remote servers. citeturn1search3turn0search0
 
 ### Meta app configuration
 
@@ -30,12 +44,15 @@ The app needs the permissions required by the ad operations you intend to use, n
 
 Copy `.env.example` to `.env` and set:
 
-- `PUBLIC_BASE_URL` — the public HTTPS URL of this server
+- `PUBLIC_BASE_URL` — public HTTPS URL of this server in production
 - `META_APP_ID`
 - `META_APP_SECRET`
 - `META_OAUTH_REDIRECT_URI`
 - `MCP_TOKEN_SECRET` — long random secret used to encrypt stored Meta credentials
 - `META_API_VERSION` — defaults to `v25.0`
+- `META_SCOPES` — optional comma-separated Meta permissions
+
+Production startup refuses to run without the required secrets and HTTPS configuration.
 
 Never commit `.env` or `data/auth.json`.
 
@@ -51,19 +68,31 @@ Health check: `/health`
 
 MCP endpoint: `/mcp`
 
-OAuth metadata: `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`
+OAuth metadata:
+
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-authorization-server`
 
 ## Connecting an MCP client
 
-Point the client at the MCP endpoint:
+Point the client at:
 
 `https://YOUR-MCP-DOMAIN/mcp`
 
-The client should discover the OAuth metadata, register dynamically, open the authorization URL, complete Meta login/consent, and exchange the returned authorization code using PKCE S256.
+The client can discover the OAuth metadata, register, complete the Meta authorization flow, and exchange the authorization code using PKCE S256.
+
+## Deployment
+
+A production Dockerfile is included. Persist `/app/data` across restarts because it contains the encrypted credential store. Inject secrets through the hosting provider rather than committing them to the repository.
+
+## Development
+
+GitHub Actions runs the TypeScript typecheck on pushes to `main` and pull requests. The MCP dependencies are pinned to the stable `2.0.0` release rather than `latest` for reproducible deployments.
 
 ## Security notes
 
 - Use HTTPS in production.
 - Keep `META_APP_SECRET` and `MCP_TOKEN_SECRET` out of Git.
-- Do not expose the service publicly without OAuth configured.
+- Use a strong, unique `MCP_TOKEN_SECRET`.
+- Persist `/app/data` securely and restrict filesystem access.
 - Meta access is user-scoped; the connected user must actually have access to the ad accounts being managed.
