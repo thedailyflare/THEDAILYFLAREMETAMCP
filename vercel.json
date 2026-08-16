@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "functions": {
+    "api/index.ts": {
+      "runtime": "nodejs22.x",
+      "maxDuration": 800
+    }
+  },
+  "rewrites": [
+    { "source": "/meta-mcp", "destination": "/api" },
+    { "source": "/meta-mcp/:path*", "destination": "/api/:path*" }
+  ]
+}
